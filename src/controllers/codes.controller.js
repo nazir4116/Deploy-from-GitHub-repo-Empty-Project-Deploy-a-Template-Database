@@ -1,4 +1,4 @@
-const Code = require('../models/Code');
+const Note = require('../models/Note');
 
 function generateSixDigitCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -17,25 +17,26 @@ async function createCode(req, res) {
     }
 
     let code = generateSixDigitCode();
-    let existing = await Code.findOne({ code });
+    let existing = await Note.findOne({ code });
     while (existing) {
       code = generateSixDigitCode();
-      existing = await Code.findOne({ code });
+      existing = await Note.findOne({ code });
     }
 
-    const newCode = await Code.create({
+    const newNote = await Note.create({
       code,
       type,
-      content,       // plain text OR base64 image string
+      content: type === 'text' ? content : '',
+      fileUrl: type === 'photo' ? content : '',
       title: title || (type === 'photo' ? 'Photo' : content.slice(0, 40)),
       owner: req.user?.id,
     });
 
     return res.status(201).json({
-      code: newCode.code,
-      type: newCode.type,
-      title: newCode.title,
-      createdAt: newCode.createdAt,
+      code: newNote.code,
+      type: newNote.type,
+      title: newNote.title,
+      createdAt: newNote.createdAt,
     });
   } catch (err) {
     console.error(err);
@@ -47,7 +48,7 @@ async function createCode(req, res) {
 async function unlockCode(req, res) {
   try {
     const { code } = req.params;
-    const found = await Code.findOne({ code });
+    const found = await Note.findOne({ code });
 
     if (!found) {
       return res.status(404).json({ error: 'No note found for this code' });
@@ -57,7 +58,7 @@ async function unlockCode(req, res) {
       code: found.code,
       type: found.type,
       title: found.title,
-      content: found.content,
+      content: found.type === 'photo' ? found.fileUrl : found.content,
       createdAt: found.createdAt,
     });
   } catch (err) {
